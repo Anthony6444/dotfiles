@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+
+_to_nvim() {
+	local prog_name="$1"; shift
+	if [ "$1" = "--really" ]; then
+		shift
+		command "$prog_name" "$@"
+	else
+		command "${NVIM:-nvim}" "$@"
+	fi
+}
+
+nano() { _to_nvim nano "$@"; }
+vi()   { _to_nvim vi   "$@"; }
+vim()  { _to_nvim vim  "$@"; }
+
+
+help() {
+    "$@" --help 2>&1 | bathelp
+}
+
+
+_term_colors() {
+    if [[ -t 1 && -z "$NO_COLOR" && $(tput colors 2>/dev/null || echo 0) -ge 8 ]]; then
+        C_BOLD=$(tput bold)      C_DIM=$(tput dim)      C_RESET=$(tput sgr0)
+        C_USER=$(tput setaf 2)   C_HOST=$(tput setaf 4) C_OS=$(tput setaf 5)
+        C_IP=$(tput setaf 3)     C_SHELL=$(tput setaf 6)
+    else
+        C_BOLD= C_DIM= C_RESET= C_USER= C_HOST= C_OS= C_IP= C_SHELL=
+    fi
+}
+
+term_header() {
+
+	[[ $TERM_PROGRAM == "vscode" || $TERM_PROGRAM == "zed" ]] && return 0;
+
+    local shell_version host os_info ip ts_ip ts
+    local C_BOLD C_DIM C_RESET C_USER C_HOST C_OS C_IP C_SHELL
+    _term_colors
+
+    case "$(basename -- "${SHELL:-sh}")" in
+        bash) shell_version="bash ${BASH_VERSION%%(*}" ;;
+        zsh)  shell_version="zsh ${ZSH_VERSION}" ;;
+        *)    shell_version=$(basename -- "${SHELL:-sh}") ;;
+    esac
+
+    host=$(hostname -f 2>/dev/null || hostname)
+    os_info=$(. /etc/os-release 2>/dev/null && printf '%s' "$NAME")
+    os_info="${os_info:-$(uname -s)} $(uname -m)"
+    ip=$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
+    ts_ip=$(tailscale ip -4 2>/dev/null)
+
+    local who="${C_BOLD}${C_HOST}${USER,,}@${host,,}${C_RESET}"
+    local os="${C_DIM}(${C_RESET}${C_OS}${os_info}${C_RESET}${C_DIM})${C_RESET}"
+    local addr="${C_DIM}ip:${C_RESET} ${C_IP}${ip:-n/a}${C_RESET}"
+    [ -n "$ts_ip" ] && ts=" ${C_DIM}(ts:${C_RESET} ${C_IP}${ts_ip}${C_RESET}${C_DIM})${C_RESET}"
+    local sh="${C_DIM}running${C_RESET} ${C_SHELL}${shell_version,,}${C_RESET}"
+
+    printf '%s %s, %s%s %s\n' "$who" "$os" "$addr" "$ts" "$sh"
+}
