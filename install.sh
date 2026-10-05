@@ -4,6 +4,8 @@ set -uo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
 BIN_DIR="$HOME/.local/bin"
+STATE_DIR="$HOME/.dotfiles-backup/state/"
+BRAVE_POLICY_DIR="/etc/brave/policies/managed"
 
 DOTS=(
 	.bashrc
@@ -61,6 +63,45 @@ link() {
 	fi
 }
 
+as_root() {
+	if [ "$(id -u)" -eq 0 ]; then
+		"$@"
+	elif command -v sudo >/dev/null 2>&1; then
+		sudo "$@"
+	else
+		return 1
+	fi
+}
+
+first_run() {
+	if [ -f "$STATE_DIR/lastrun" ]; then
+		skip "already initialized at $(cat "$STATE_DIR/lastrun" 2>/dev/null)"
+		return
+	fi
+
+	if ! as_root true 2>/dev/null; then
+		warn "need root for system setup; re-run with sudo to apply it"
+		return
+	fi
+
+	local policy="$DOTFILES/assets/brave-policy.json"
+	if [ ! -f "$policy" ]; then
+		fail "missing source: assets/brave-policy.json"
+	elif as_root mkdir -p "$BRAVE_POLICY_DIR" &&
+		as_root cp "$policy" "$BRAVE_POLICY_DIR/GroupPolicy.json"; then
+		ok "brave policy -> $BRAVE_POLICY_DIR/GroupPolicy.json"
+	else
+		fail "could not install brave policy"
+	fi
+
+	if as_root mkdir -p "$STATE_DIR" &&
+		date +'%Y-%m-%d %H:%M:%S' | as_root tee "$STATE_DIR/lastrun" >/dev/null; then
+		ok "marked first run complete"
+	else
+		fail "could not write $STATE_DIR/lastrun"
+	fi
+}
+
 printf '%sInstalling dotfiles from%s %s\n\n' "$BLUE" "$RESET" "$DOTFILES"
 
 info "Shell config"
@@ -82,6 +123,9 @@ else
 	done
 fi
 shopt -u nullglob
+
+info "System setup (first run)"
+first_run
 
 info "Checking dependencies"
 for cmd in nvim bat zoxide kitty go wl-copy; do
