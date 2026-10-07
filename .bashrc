@@ -48,6 +48,7 @@ eval "$(zoxide init bash)"
 export EMBSYS_HOME="$HOME/Documents/UMary/2026-27/fall-26/embedded-systems"
 export QSYS_ROOTDIR="$HOME/altera_lite/25.1std/quartus/sopc_builder/bin"
 
-export MANPAGER="bat -plman"
+export MANROFFOPT="-c"
+export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 
 term_header

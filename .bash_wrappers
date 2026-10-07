@@ -20,6 +20,14 @@ help() {
     "$@" --help 2>&1 | bathelp
 }
 
+mcd() {
+    if [ "$#" -ne 1 ] || [ -z "$1" ]; then
+        printf 'usage: mc <dir>\n' >&2
+        return 2
+    fi
+    mkdir -p -- "$1" && cd -- "$1"
+}
+
 
 _term_colors() {
     if [[ -t 1 && -z "$NO_COLOR" && $(tput colors 2>/dev/null || echo 0) -ge 8 ]]; then
